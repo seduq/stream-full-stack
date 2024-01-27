@@ -1,0 +1,17 @@
+TODO:
+- Encher o céu de estrela
+- AA
+- Estrelas na frente, Linha atrás
+- Bloom mais efetivo
+- Fade in/out
+	- Tamanho ou transparência
+- Estrela cadente
+- Constelação aleatória (a partir da esquerda)
+- Estrela colorida (?)
+	- Iluminação colorida (?)
+- Múltiplas mensagens para a mesma cena
+	- Keybind ou digitar texto (?)
+- Timers
+- Exportar como aplicação, media source ou browser source?
+- Economizar frame quando minimizado (?)
+	- Notificação do OBS para a aplicação (?) Lua (?)
