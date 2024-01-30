@@ -93,6 +93,11 @@ public class Star : MonoBehaviour
             yield return null;
         }
 
+        if (start)
+            Light.intensity = controller.starIntensity.max;
+        else
+            Light.intensity = controller.starIntensity.min;
+
         yield return null;
     }
 
@@ -121,7 +126,9 @@ public class Star : MonoBehaviour
             yield return null;
         }
 
-        if (!start)
+        if (start)
+            lineRenderer.SetPositions(new[] { startPosition, endPosition });
+        else
             lineRenderer.enabled = false;
 
         foreach (var nextStar in nextStars) {
@@ -139,12 +146,11 @@ public class Star : MonoBehaviour
         return lines.TrueForAll(line => line.running == false);
     }
 
-    public void GetAllStars(List<Star> stars, List<Tuple<Star, Vector3>> starPositions) {
-        starPositions.Add(new(this, transform.position));
+    public void GetAllStars(List<Star> stars) {
         if(!stars.Contains(this))
             stars.Add(this);
         foreach (var star in nextStars) {
-            star.GetAllStars(stars, starPositions);
+            star.GetAllStars(stars);
         }
     }
 

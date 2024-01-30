@@ -3,7 +3,7 @@ Shader "Custom/Star"
     Properties
     {
         _MainTex("Sprite Texture", 2D) = "white" {}
-        _BorderAlphaExp("Border Alpha Exp", Float) = 5
+        //_BorderAlphaExp("Border Alpha Exp", Float) = 5
 
     // Legacy properties. They're here so that materials using this shader can gracefully fallback to the legacy sprite shader.
     [HideInInspector] _Color("Tint", Color) = (1,1,1,1)
@@ -21,7 +21,7 @@ Shader "Custom/Star"
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Off
         ZWrite Off
-
+        /*
         Pass
         {
             Tags { "LightMode" = "Universal2D" }
@@ -102,7 +102,7 @@ Shader "Custom/Star"
             }
             ENDHLSL
         }
-
+        */
         Pass
         {
             Tags { "LightMode" = "UniversalForward" "Queue" = "Transparent" "RenderType" = "Transparent"}
@@ -192,6 +192,7 @@ Shader "Custom/Star"
             }
             ENDHLSL
         }
+        
     }
 
         Fallback "Sprites/Default"

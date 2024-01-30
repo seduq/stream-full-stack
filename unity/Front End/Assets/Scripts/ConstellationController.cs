@@ -2,9 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UIElements;
+using static UnityEngine.Rendering.VolumeComponent;
 using Random = UnityEngine.Random;
 
 
@@ -26,9 +28,7 @@ public class ConstellationController : MonoBehaviour
     public MinMax starIntensity;
     public MinMax starSize;
     public List<Color> starColors;
-
-    [Header("Void Stars")]
-    public GameObject empty;
+    public float colorProbability = 0.25f;
 
     [Header("Cross Constellation")]
     public int numberOfCrossStars = 10;
@@ -38,7 +38,6 @@ public class ConstellationController : MonoBehaviour
     private readonly List<Constellation> constellations = new();
     private readonly List<Star> stars = new();
     private readonly List<Star> orderedStars = new();
-    private readonly List<Tuple<Star, Vector3>> starPositions = new();
     private readonly List<Tuple<Star, Star, GameObject>> lines = new();
 
 
@@ -54,9 +53,11 @@ public class ConstellationController : MonoBehaviour
 
     private void Start() {
         constellations.ForEach(constellation => {
-            Color color = starColors[Random.Range(0, starColors.Count)];
-            constellation.AddConstellationStars(stars, starPositions);
-            constellation.SetColor(color);
+            constellation.AddConstellationStars(stars);
+            if (Random.value < colorProbability) {
+                Color color = starColors[Random.Range(0, starColors.Count)];
+                constellation.SetColor(color);
+            }
         });
 
         orderedStars.AddRange(
@@ -64,43 +65,145 @@ public class ConstellationController : MonoBehaviour
             .Where(star => { return Mathf.Abs(star.transform.position.y) < starMaxDistanceY; })
             .OrderBy(star => star.transform.position.x));
 
+        var crossConstellation = Instantiate(empty, Vector3.zero, Quaternion.identity);
+        crossConstellation.name = "Cross Constellation";
+
         for (int i = 0; i < numberOfCrossStars - 1; i++) {
             var line = Instantiate(linePrefab);
+            line.transform.parent = crossConstellation.transform;
             LineRenderer lineRenderer = line.GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
             lines.Add(new(null, null, line));
         }
 
-        //StartCoroutine(Cluster());
+        clusters = new List<Tuple<Star, GameObject>>[startSize.x, startSize.y];
+        roots = new GameObject[startSize.x, startSize.y];
+        var parent = Instantiate(empty, Vector3.zero, Quaternion.identity);
+        parent.name = "Clusters";
+        Vector3 nClusters = new(startSize.x, startSize.y, 1);
+        Vector3 start = new(0, 0, 1);
+        Vector3 size = new(1, 1, 1);
+        StartCoroutine(Cluster(stars, clusters, roots, parent, start, nClusters, size, 0));
     }
 
-    private IEnumerator Cluster() {
-        var waitForSeconds = new WaitForSeconds(0.5f);
-        float aspect = Camera.main.aspect;
-        float clusterRatio = 5;
-        var clusterSize = new Vector2Int(Mathf.CeilToInt(aspect * clusterRatio), Mathf.CeilToInt(clusterRatio / aspect)); // 10 * 1,6, 10 / 1,6
-        List<List<Tuple<Star, GameObject>>> clusters = Enumerable.Repeat(new List<Tuple<Star, GameObject>>(), clusterSize.x * clusterSize.y).ToList();
-        List<GameObject> roots = new();
-        //for (int i = 0; i < clusterSize.x * clusterSize.y; i++) {
-        //    Instantiate(empty);
-        //    roots.Add(empty);
-        //    yield return waitForSeconds;
-        //}
-        while ( starPositions.Count > 0) {
-            Star star = starPositions[0].Item1;
-            Vector3 position = starPositions[0].Item2;
-            Vector2 viewportPosition = Camera.main.WorldToViewportPoint(position);
-            Vector2 clusterPosition = Vector2.Scale(viewportPosition, clusterSize); // ([0,1], [0,1]) * (x, y)
+    [Header("Clustering")]
+    public GameObject empty;
+    public Vector2Int startSize = new Vector2Int(8, 4);
+    public float clusterDivision = 2f;
+    public int minStars = 3;
+    public int jump = 1;
+    public float clusterStarProbability = 0.5f;
+    public float clusterStarColorProbability = 0.1f;
+    private List<Tuple<Star, GameObject>>[,] clusters;
+    private GameObject[,] roots;
 
-            int index = Mathf.FloorToInt(clusterPosition.y * clusterSize.x) + Mathf.FloorToInt(clusterPosition.y);
+    private IEnumerator Cluster(List<Star> stars, List<Tuple<Star, GameObject>>[,] clusters, GameObject[,] roots, GameObject parent,
+        Vector3 start, Vector3 nClusters, Vector3 size, int jump) {
 
-            //clusters[index].Add(new(star, Instantiate(empty, position, Quaternion.identity)));
-            //yield return waitForSeconds;
+        var clusterSize = new Vector3(size.x / nClusters.x, size.y / nClusters.y, size.z / nClusters.z);
+        var inverted = new Vector3(nClusters.x / size.x, nClusters.y / size.y, nClusters.z / size.z);
 
-            clusters[index].Add(new(star, null));
-            yield return null;
+        if (nClusters.x < 2 || nClusters.y < 2) {
+            if (Random.value > clusterStarProbability)
+                yield break;
+            var viewportPosition = new Vector3(
+                Random.Range(start.x, start.x + clusterSize.x),
+                Random.Range(start.y, start.y + clusterSize.y),
+                0f);
+            var position = Camera.main.ViewportToWorldPoint(viewportPosition);
+            position.z = starPrefab.transform.localPosition.z;
+
+            var star = Instantiate(starPrefab, position, Quaternion.identity);
+            star.transform.parent = parent.transform;
+
+            var starComponent = star.GetComponent<Star>();
+            starComponent.Light.enabled= false;
+            starComponent.Create(this);
+            if (Random.value < clusterStarColorProbability) {
+                Color color = starColors[Random.Range(0, starColors.Count)];
+                starComponent.SetColor(color);
+            }
+
+            this.stars.Add(starComponent);
+            yield break;
         }
-        Debug.Break();
+
+
+        for (int i = 0; i < nClusters.x; i++) {
+            for (int j = 0; j < nClusters.y; j++) {
+                var cluster = new Vector3(i, j, 1);
+                var viewportPosition = start + Vector3.Scale(cluster, clusterSize);
+                var position = Camera.main.ViewportToWorldPoint(viewportPosition);
+                var root = Instantiate(empty, position, Quaternion.identity);
+                root.transform.parent = parent.transform;
+                root.name = $"X {i}, Y {j}";
+                roots[i, j] = root;
+                //yield return null;
+            }
+        }
+
+        for (int i = 0; i < stars.Count; i++) {
+            var star = stars[i];
+            var constellation = star.transform.parent.gameObject;
+            var position = stars[i].transform.position;
+
+            var viewportPosition = Camera.main.WorldToViewportPoint(position);
+            var clusterPosition = Vector3.Scale(viewportPosition - start, inverted);
+            var index = new Vector2Int(Mathf.FloorToInt(clusterPosition.x), Mathf.FloorToInt(clusterPosition.y));
+
+            if (index.x < 0
+                || index.y < 0
+                || index.x >= nClusters.x
+                || index.y >= nClusters.y) {
+                continue;
+            }
+
+            var emptyPosition = Instantiate(empty, position, Quaternion.identity);
+            emptyPosition.name = $"{constellation.name} {star.name}";
+            emptyPosition.transform.parent = roots[index.x, index.y].transform;
+
+            if (clusters[index.x, index.y] == null)
+                clusters[index.x, index.y] = new();
+
+            clusters[index.x, index.y].Add(new(star, emptyPosition));
+            roots[index.x, index.y].name = $"X {index.x}, Y {index.y}: {roots[index.x, index.y].transform.childCount}";
+            //yield return null;
+        }
+
+        for (int i = 0; i < nClusters.x; i++) {
+            for (int j = 0; j < nClusters.y; j++) {
+                var cluster = clusters[i, j];
+                if (cluster == null)
+                    cluster = new();
+
+                if (cluster.Count < minStars - this.jump * jump) {
+                    var x = Mathf.Max(Mathf.FloorToInt(nClusters.x / clusterDivision), 1);
+                    var y = Mathf.Max(Mathf.FloorToInt(nClusters.y / clusterDivision), 1);
+
+                    var subClusters = new List<Tuple<Star, GameObject>>[x, y];
+                    var subRoots = new GameObject[x, y];
+
+                    var clusterStars = cluster.Select(a => a.Item1).ToList();
+                    var clusterPosition = new Vector3(i, j, 1);
+                    var viewportPosition = start + Vector3.Scale(clusterPosition, clusterSize);
+                    yield return Cluster(clusterStars, subClusters, subRoots, roots[i, j], viewportPosition, new Vector3(x, y, 1), clusterSize, jump + 1);
+                }
+                //yield return null;
+            }
+        }
+    }
+
+    void OnDrawGizmos() {
+        //for (int i = 0; i < x; i++) {
+        //    for (int j = 0; j < y; j++) {
+        //        Vector3 viewportCenter = new Vector3((2f * i + 1f) / (2f * x), (2f * j + 1f) / (2f * y), 0f);
+        //        Vector3 center = Camera.main.ViewportToWorldPoint(viewportCenter);
+        //        Vector3 size = Camera.main.ViewportToWorldPoint(new Vector3(0.5f / x, 0.5f / y, 0));
+
+        //        Gizmos.color = new Color(i * 1f / x, j * 1f / y, 0.3f);
+        //        Gizmos.DrawWireCube(center, new Vector3(1.1f, 1.1f, 1f));
+        //    }
+        //}
     }
 
     IEnumerator CrossContellation(bool start) {
@@ -117,7 +220,7 @@ public class ConstellationController : MonoBehaviour
             Star endStar = start ? orderedStars[indexEnd] : lines[i].Item2;
             lastIndex = indexEnd;
 
-            if (start) 
+            if (start)
                 lines[i] = new(startStar, endStar, line);
 
             Vector3 direction = endStar.transform.position - startStar.transform.position;

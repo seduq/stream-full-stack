@@ -178,6 +178,7 @@ public class SpriteManager : MonoBehaviour
     };
 
     public Material material;				// The material to use for the sprites
+    public int initialBlockSize;
     public int allocBlockSize;				// How many sprites to allocate space for at a time. ex: if set to 10, 10 new sprite blocks will be allocated at a time. Once all of these are used, 10 more will be allocated, and so on...
     public SPRITE_PLANE plane;				// The plane in which to create the sprites
     public WINDING_ORDER winding = WINDING_ORDER.CCW;	// Which way to wind polygons
@@ -277,7 +278,7 @@ public class SpriteManager : MonoBehaviour
         mesh = meshFilter.mesh;
 
         // Create our first batch of sprites:
-        EnlargeArrays(allocBlockSize);
+        EnlargeArrays(initialBlockSize);
 
         // Move the object to the origin so the objects drawn will not
         // be offset from the objects they are intended to represent.

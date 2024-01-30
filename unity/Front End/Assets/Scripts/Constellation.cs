@@ -56,10 +56,10 @@ public class Constellation : MonoBehaviour
         });
     }
 
-    public void AddConstellationStars(List<Star> stars, List<Tuple<Star, Vector3>> starPositions) {
+    public void AddConstellationStars(List<Star> stars) {
         rootStars.ForEach(star => {
             allStars.Add(star);
-            star.GetAllStars(allStars, starPositions);
+            star.GetAllStars(allStars);
         });
 
         stars.AddRange(allStars);
