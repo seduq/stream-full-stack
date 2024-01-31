@@ -45,10 +45,11 @@ public class ConstellationController : MonoBehaviour
     private float nextLifespan = 0;
     private int nextIndex = 0;
 
-    private bool paused = false;
+    private bool running = false;
 
     void Awake() {
         constellations.AddRange(transform.GetComponentsInChildren<Constellation>());
+        changeState = false;
     }
 
     private void Start() {
@@ -138,7 +139,6 @@ public class ConstellationController : MonoBehaviour
                 root.transform.parent = parent.transform;
                 root.name = $"X {i}, Y {j}";
                 roots[i, j] = root;
-                //yield return null;
             }
         }
 
@@ -167,7 +167,6 @@ public class ConstellationController : MonoBehaviour
 
             clusters[index.x, index.y].Add(new(star, emptyPosition));
             roots[index.x, index.y].name = $"X {index.x}, Y {index.y}: {roots[index.x, index.y].transform.childCount}";
-            //yield return null;
         }
 
         for (int i = 0; i < nClusters.x; i++) {
@@ -188,22 +187,8 @@ public class ConstellationController : MonoBehaviour
                     var viewportPosition = start + Vector3.Scale(clusterPosition, clusterSize);
                     yield return Cluster(clusterStars, subClusters, subRoots, roots[i, j], viewportPosition, new Vector3(x, y, 1), clusterSize, jump + 1);
                 }
-                //yield return null;
             }
         }
-    }
-
-    void OnDrawGizmos() {
-        //for (int i = 0; i < x; i++) {
-        //    for (int j = 0; j < y; j++) {
-        //        Vector3 viewportCenter = new Vector3((2f * i + 1f) / (2f * x), (2f * j + 1f) / (2f * y), 0f);
-        //        Vector3 center = Camera.main.ViewportToWorldPoint(viewportCenter);
-        //        Vector3 size = Camera.main.ViewportToWorldPoint(new Vector3(0.5f / x, 0.5f / y, 0));
-
-        //        Gizmos.color = new Color(i * 1f / x, j * 1f / y, 0.3f);
-        //        Gizmos.DrawWireCube(center, new Vector3(1.1f, 1.1f, 1f));
-        //    }
-        //}
     }
 
     IEnumerator CrossContellation(bool start) {
@@ -254,7 +239,15 @@ public class ConstellationController : MonoBehaviour
     }
     void Update() {
 
-        if (!paused && Time.time > nextStart) {
+        if (changeState) {
+            Debug.Log("A" + running);
+            constellations.ForEach(constellation => { constellation.Stop(); });
+            stars.ForEach(star => { star.Light.enabled = running; });
+            //StartCoroutine(CrossContellation(running));
+            changeState = false;
+        }
+
+        if (running && Time.time > nextStart) {
             if (nextIndex > constellations.Count)
                 return;
 
@@ -277,10 +270,7 @@ public class ConstellationController : MonoBehaviour
         }
 
         if (Input.GetKeyDown(KeyCode.Space)) {
-            constellations.ForEach(constellation => { constellation.Stop(); });
-            stars.ForEach(star => { star.Light.enabled = paused; });
-            StartCoroutine(CrossContellation(!paused));
-            paused = !paused;
+            SetState(!running);
         }
     }
     public void Shuffle<T>(IList<T> list) {
@@ -292,5 +282,13 @@ public class ConstellationController : MonoBehaviour
             list[k] = list[n];
             list[n] = value;
         }
+    }
+
+    private bool changeState = false;
+
+    public void SetState(bool running) {
+        changeState = true;
+        this.running = running;
+        Debug.Log(running);
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -23,7 +22,7 @@ public class Star : MonoBehaviour
     [Header("Star")]
     public List<Star> nextStars = new();
 
-    private new Light light;
+    private Light _light;
     private SpriteRenderer sprite;
 
     private bool shining = false;
@@ -31,11 +30,11 @@ public class Star : MonoBehaviour
 
     private readonly List<Line> lines = new();
 
-    public Light Light { get => light; }
+    public Light Light { get => _light; }
     public SpriteRenderer Sprite { get => sprite; }
 
     private void Awake() {
-        light = GetComponent<Light>();
+        _light = GetComponent<Light>();
         sprite = GetComponent<SpriteRenderer>();
     }
 

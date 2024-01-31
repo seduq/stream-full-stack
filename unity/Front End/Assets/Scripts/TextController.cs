@@ -1,11 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using TMPro;
+using UnityEditor;
 using UnityEngine;
+using OBSWebsocketDotNet;
+using System.Threading.Tasks;
 
 public class TextController : MonoBehaviour
 {
@@ -21,98 +26,75 @@ public class TextController : MonoBehaviour
     public GameObject endingMesh;
     public GameObject beRightBackMesh;
 
-    private enum State {
+    public enum State
+    {
         Starting,
         Ending,
-        BeRightBack
-    }
-    private bool typing = false;
-    private string text = "";
-    private State state = State.Starting;
-    void Start()
-    {
-        startingMesh.SetActive(useMesh);
-        endingMesh.SetActive(false);
-        beRightBackMesh.SetActive(false);
-        textMeshPro.gameObject.SetActive(!useMesh);
-        TextController.SimpleListenerExample(new string[] { "start", "end", "brb" });
+        BeRightBack,
+        None
     }
 
-    void Update()
-    {
+    private State state;
+    private bool typing = false;
+    private string text = "";
+
+    void Start() {
+        SetState(State.Starting);
+        textMeshPro.gameObject.SetActive(!useMesh);
+    }
+
+    void Update() {
+
         if (Input.GetKeyDown(KeyCode.Home)) {
-            textMeshPro.text = starting;
-            state = State.Starting;
+            SetState(State.Starting);
         } else if (Input.GetKeyDown(KeyCode.End)) {
-            textMeshPro.text = ending;
-            state = State.Ending;
+            SetState(State.Ending);
         } else if (Input.GetKeyDown(KeyCode.Delete)) {
-            textMeshPro.text = beRightBack;
-            state = State.BeRightBack;
+            SetState(State.BeRightBack);
         } else if (Input.GetKeyDown(KeyCode.Backspace)) {
             text = "";
             typing = true;
         }
 
+        textMeshPro.text = text;
         startingMesh.SetActive(state == State.Starting && useMesh);
         endingMesh.SetActive(state == State.Ending && useMesh);
         beRightBackMesh.SetActive(state == State.BeRightBack && useMesh);
 
-        if(typing) {
-            if(Input.GetKeyDown(KeyCode.Return)) {
+
+        if (typing) {
+            if (Input.GetKeyDown(KeyCode.Return)) {
                 text += Input.inputString;
                 Regex rgx = new("[^a-zA-Z0-9 -]");
                 text = rgx.Replace(text, "");
 
-                textMeshPro.text= text;
+                textMeshPro.text = text;
 
                 typing = false;
                 text = "";
-            }
-            else if(Input.anyKeyDown) {
+            } else if (Input.anyKeyDown) {
                 text += Input.inputString;
             }
         }
     }
 
-    public static void SimpleListenerExample(string[] prefixes) {
-        //if (!HttpListener.IsSupported) {
-        //    Console.WriteLine("Windows XP SP2 or Server 2003 is required to use the HttpListener class.");
-        //    return;
-        //}
-        //// URI prefixes are required,
-        //// for example "http://contoso.com:8080/index/".
-        //if (prefixes == null || prefixes.Length == 0)
-        //    throw new ArgumentException("prefixes");
-
-        //// Create a listener.
-        //HttpListener listener = new HttpListener();
-        //// Add the prefixes.
-        //foreach (string s in prefixes) {
-        //    listener.Prefixes.Add(s);
-        //}
-        //listener.Start();
-        //Console.WriteLine("Listening...");
-        
-
-
-
-
-
-        //// Note: The GetContext method blocks while waiting for a request.
-        //HttpListenerContext context = listener.GetContextAsync();
-        //HttpListenerRequest request = context.Request;
-        //// Obtain a response object.
-        //HttpListenerResponse response = context.Response;
-        //// Construct a response.
-        //string responseString = "<HTML><BODY> Hello world!</BODY></HTML>";
-        //byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-        //// Get a response stream and write the response to it.
-        //response.ContentLength64 = buffer.Length;
-        //System.IO.Stream output = response.OutputStream;
-        //output.Write(buffer, 0, buffer.Length);
-        //// You must close the output stream.
-        //output.Close();
-        //listener.Stop();
+    public void SetState(State state) {
+        this.state= state;
+        switch (state) {
+            case State.Starting:
+                text = starting;
+                break;
+            case State.Ending:
+                text = ending;
+                break;
+            case State.BeRightBack:
+                text = beRightBack;
+                break;
+            case State.None:
+                text = "";
+                break;
+            default:
+                break;
+        }
     }
 }
