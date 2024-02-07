@@ -77,29 +77,29 @@ public class ConstellationController : MonoBehaviour
             lines.Add(new(null, null, line));
         }
 
-        clusters = new List<Tuple<Star, GameObject>>[startSize.x, startSize.y];
-        roots = new GameObject[startSize.x, startSize.y];
+        clusters = new List<Star>[startSize.x, startSize.y];
+        //roots = new GameObject[startSize.x, startSize.y];
         var parent = Instantiate(empty, Vector3.zero, Quaternion.identity);
         parent.name = "Clusters";
         Vector3 nClusters = new(startSize.x, startSize.y, 1);
         Vector3 start = new(0, 0, 1);
         Vector3 size = new(1, 1, 1);
-        StartCoroutine(Cluster(stars, clusters, roots, parent, start, nClusters, size, 0));
+        StartCoroutine(Cluster(stars, clusters, start, nClusters, size, 0));
     }
 
     [Header("Clustering")]
     public GameObject empty;
+    public Transform randomStarsParent;
     public Vector2Int startSize = new Vector2Int(8, 4);
     public float clusterDivision = 2f;
     public int minStars = 3;
     public int jump = 1;
     public float clusterStarProbability = 0.5f;
     public float clusterStarColorProbability = 0.1f;
-    private List<Tuple<Star, GameObject>>[,] clusters;
-    private GameObject[,] roots;
+    private List<Star>[,] clusters;
+    //private GameObject[,] roots;
 
-    private IEnumerator Cluster(List<Star> stars, List<Tuple<Star, GameObject>>[,] clusters, GameObject[,] roots, GameObject parent,
-        Vector3 start, Vector3 nClusters, Vector3 size, int jump) {
+    private IEnumerator Cluster(List<Star> stars, List<Star>[,] clusters, Vector3 start, Vector3 nClusters, Vector3 size, int jump) {
 
         var clusterSize = new Vector3(size.x / nClusters.x, size.y / nClusters.y, size.z / nClusters.z);
         var inverted = new Vector3(nClusters.x / size.x, nClusters.y / size.y, nClusters.z / size.z);
@@ -115,7 +115,7 @@ public class ConstellationController : MonoBehaviour
             position.z = starPrefab.transform.localPosition.z;
 
             var star = Instantiate(starPrefab, position, Quaternion.identity);
-            star.transform.parent = parent.transform;
+            star.transform.parent = randomStarsParent;
 
             var starComponent = star.GetComponent<Star>();
             starComponent.Light.enabled= false;
@@ -135,16 +135,16 @@ public class ConstellationController : MonoBehaviour
                 var cluster = new Vector3(i, j, 1);
                 var viewportPosition = start + Vector3.Scale(cluster, clusterSize);
                 var position = Camera.main.ViewportToWorldPoint(viewportPosition);
-                var root = Instantiate(empty, position, Quaternion.identity);
-                root.transform.parent = parent.transform;
-                root.name = $"X {i}, Y {j}";
-                roots[i, j] = root;
+                //var root = Instantiate(empty, position, Quaternion.identity);
+                //root.transform.parent = parent.transform;
+                //root.name = $"X {i}, Y {j}";
+                //roots[i, j] = root;
             }
         }
 
         for (int i = 0; i < stars.Count; i++) {
             var star = stars[i];
-            var constellation = star.transform.parent.gameObject;
+            //var constellation = star.transform.parent.gameObject;
             var position = stars[i].transform.position;
 
             var viewportPosition = Camera.main.WorldToViewportPoint(position);
@@ -158,15 +158,15 @@ public class ConstellationController : MonoBehaviour
                 continue;
             }
 
-            var emptyPosition = Instantiate(empty, position, Quaternion.identity);
-            emptyPosition.name = $"{constellation.name} {star.name}";
-            emptyPosition.transform.parent = roots[index.x, index.y].transform;
+            //var emptyPosition = Instantiate(empty, position, Quaternion.identity);
+            //emptyPosition.name = $"{constellation.name} {star.name}";
+            //emptyPosition.transform.parent = roots[index.x, index.y].transform;
 
             if (clusters[index.x, index.y] == null)
                 clusters[index.x, index.y] = new();
 
-            clusters[index.x, index.y].Add(new(star, emptyPosition));
-            roots[index.x, index.y].name = $"X {index.x}, Y {index.y}: {roots[index.x, index.y].transform.childCount}";
+            clusters[index.x, index.y].Add(star);
+            //roots[index.x, index.y].name = $"X {index.x}, Y {index.y}: {roots[index.x, index.y].transform.childCount}";
         }
 
         for (int i = 0; i < nClusters.x; i++) {
@@ -179,13 +179,13 @@ public class ConstellationController : MonoBehaviour
                     var x = Mathf.Max(Mathf.FloorToInt(nClusters.x / clusterDivision), 1);
                     var y = Mathf.Max(Mathf.FloorToInt(nClusters.y / clusterDivision), 1);
 
-                    var subClusters = new List<Tuple<Star, GameObject>>[x, y];
-                    var subRoots = new GameObject[x, y];
+                    var subClusters = new List<Star>[x, y];
+                    //var subRoots = new GameObject[x, y];
 
-                    var clusterStars = cluster.Select(a => a.Item1).ToList();
+                    //var clusterStars = cluster.Select(a => a.Item1).ToList();
                     var clusterPosition = new Vector3(i, j, 1);
                     var viewportPosition = start + Vector3.Scale(clusterPosition, clusterSize);
-                    yield return Cluster(clusterStars, subClusters, subRoots, roots[i, j], viewportPosition, new Vector3(x, y, 1), clusterSize, jump + 1);
+                    yield return Cluster(stars, subClusters, viewportPosition, new Vector3(x, y, 1), clusterSize, jump + 1);
                 }
             }
         }
@@ -240,10 +240,8 @@ public class ConstellationController : MonoBehaviour
     void Update() {
 
         if (changeState) {
-            Debug.Log("A" + running);
             constellations.ForEach(constellation => { constellation.Stop(); });
             stars.ForEach(star => { star.Light.enabled = running; });
-            //StartCoroutine(CrossContellation(running));
             changeState = false;
         }
 

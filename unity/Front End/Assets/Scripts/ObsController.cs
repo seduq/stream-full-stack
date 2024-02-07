@@ -1,6 +1,7 @@
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Types.Events;
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
@@ -28,6 +29,17 @@ public class ObsController : MonoBehaviour
     void Awake() {
         if (obs != null && obs.IsConnected)
             canvas.SetActive(false);
+        else {
+            string path = Application.persistentDataPath;
+            string filePath = $"{path}/config.json";
+            if (File.Exists(filePath)) {
+                var json = File.ReadAllText(filePath);
+                var config = JsonUtility.FromJson<Config>(json);
+                ip.text = config.ip;
+                password.text = config.password;
+                Connect();
+            }
+        }
     }
 
     public void Connect() {
@@ -53,6 +65,14 @@ public class ObsController : MonoBehaviour
 
         Debug.Log($"Connected Version {versionInfo}, Plugin Version {pluginVersion}, OBS Version {obsVersion}");
 
+        string path = Application.persistentDataPath;
+        var data = new Config {
+            ip = ip.text,
+            password = password.text
+        };
+        var json = JsonUtility.ToJson(data);
+        File.WriteAllText($"{path}/config.json", json);
+
         keepAliveTokenSource = new CancellationTokenSource();
         CancellationToken keepAliveToken = keepAliveTokenSource.Token;
         Task statPollKeepAlive = Task.Factory.StartNew(() => {
@@ -68,6 +88,9 @@ public class ObsController : MonoBehaviour
     private void OnDisconnect(object sender, OBSWebsocketDotNet.Communication.ObsDisconnectionInfo e) {
         var info = e.WebsocketDisconnectionInfo;
         Debug.Log($"Disconnected Reason {info.Type} Close Code {e.ObsCloseCode}");
+        if(info.Type == Websocket.Client.DisconnectionType.ByServer) {
+            Application.Quit();
+        }
     }
 
     private void OnCurrentProgramSceneChanged(object sender, ProgramSceneChangedEventArgs args) {
